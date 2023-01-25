@@ -1,6 +1,6 @@
 # The-Invisible-Hand
 ### Quick Disclaimer
-Yes, I am aware that this prorgam can be used maliciously. However, I started this program because I like the cybersecurity aspect of it and wanted to challenge myself to see how well I could make this work. As with any other piece of software, always make sure you have permission to run this on a computer before doing so.
+Yes, I am aware that this program can be used maliciously. However, I started this program because I like the cybersecurity aspect of it and wanted to challenge myself to see how well I could make this work. As with any other piece of software, always make sure you have permission to run this on a computer before doing so.
 
 ### Some Background
 A revamp/restart of my [CC](https://github.com/NatAug62/CC) project. This project was my first major attempt at making a remote takeover program, but was far too buggy and messy for me to manage. I tried restarting this project before, but lost motivation before making any significant progress.
