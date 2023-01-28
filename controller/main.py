@@ -2,6 +2,7 @@
     Main code
     Handles startup, main control loop, calls to other functions, etc
 """
+
 from time import sleep
 import threading
 # import my own code
@@ -32,7 +33,7 @@ class cmdOutputThread (threading.Thread):
                 sleep(10)
 
 """
-    Main function, 
+    Main function
 """
 def main():
     # wait for a zombie to connect
