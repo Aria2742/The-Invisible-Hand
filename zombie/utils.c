@@ -2,36 +2,60 @@
 	Various utility functions that are used in other files
 */
 
-// TODO - clean up these initial functions
+#include "utils.h"
+#include "common.h"
 
+// Create a structure (and global instance of it) that holds all the globals used in this file
+// This helps organize the globals and make it more obvious where each global is coming from
+struct UtilsGlobals {
+	WSADATA wsa;
+
+} utilsGlobals;
+
+/*
+* Initialize the WinSock library. This needs to be done before calling any other WinSock functions
+* NOTE: This initializes the global variable 'utilGlobals.wsa'
+* 
+* parameters:
+*	N/A
+* returns:
+*	0 on success, otherwise returns the result of WSAGetLastError()
+*/
 int initWinSock() {
-	// initialize winsock - we only need to do this once, so might as well do it now
-	WSADATA wsa; // TODO - make this global?
-
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+	if (WSAStartup(MAKEWORD(2, 2), &utilGlobals.wsa) != 0)
 	{
-		printf("Winsock initialization failed. Error Code : %d", WSAGetLastError());
-		return 1;
+		return WSAGetLastError();
 	}
+	return 0;
 }
 
-int connectTCP(addr, port) {
-	//Create a socket
-	Socket cmdSock; // todo - create in a way that lets us pass it back out
-	if ((cmdSock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+/*
+* Connect to a server using TCP
+* 
+* parameters:
+*	[in] addr - a string containing the IPv4 address of the server to connect to
+*	[in] port -  which port to connect to
+*	[out] sock - a SOCKET structure to hold the connected socket
+* returns:
+*	0 on success, otherwise returns the result of WSAGetLastError()
+*/
+int connectTCP(char* addr, int port, Socket* sock) {
+	// create the socket and make sure it worked
+	*sock = socket(AF_INET, SOCK_STREAM, 0)
+	if (*sock == INVALID_SOCKET)
 	{
-		printf("Could not create command socket : %d", WSAGetLastError());
-		return 1;
+		return WSAGetLastError();
 	}
-
-	server.sin_addr.s_addr = inet_addr("127.0.0.1");
+	// create the server info structure
+	struct sockaddr_in server
+	server.sin_addr.s_addr = inet_addr(addr);
 	server.sin_family = AF_INET;
-	server.sin_port = htons(8080);
-
-	//Connect to remote server
+	server.sin_port = htons(port);
+	// connect to the server
 	if (connect(cmdSock, (struct sockaddr*)&server, sizeof(server)) < 0)
 	{
-		printf("Could not connect to command server");
-		return 1;
+		return WSAGetLastError();
 	}
+	// return success
+	return 0;
 }
