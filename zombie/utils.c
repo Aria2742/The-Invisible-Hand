@@ -2,12 +2,12 @@
 	Various utility functions that are used in other files
 */
 
-#include "utils.h"
 #include "common.h"
+#include "utils.h"
 
 // Create a structure (and global instance of it) that holds all the globals used in this file
 // This helps organize the globals and make it more obvious where each global is coming from
-struct UtilsGlobals {
+struct utilsGlobalsStruct {
 	WSADATA wsa;
 
 } utilsGlobals;
@@ -22,7 +22,7 @@ struct UtilsGlobals {
 *	0 on success, otherwise returns the result of WSAGetLastError()
 */
 int initWinSock() {
-	if (WSAStartup(MAKEWORD(2, 2), &utilGlobals.wsa) != 0)
+	if (WSAStartup(MAKEWORD(2, 2), &utilsGlobals.wsa) != 0)
 	{
 		return WSAGetLastError();
 	}
@@ -39,20 +39,20 @@ int initWinSock() {
 * returns:
 *	0 on success, otherwise returns the result of WSAGetLastError()
 */
-int connectTCP(char* addr, int port, Socket* sock) {
+int connectTCP(char* addr, int port, SOCKET sock) {
 	// create the socket and make sure it worked
-	*sock = socket(AF_INET, SOCK_STREAM, 0)
-	if (*sock == INVALID_SOCKET)
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock == INVALID_SOCKET)
 	{
 		return WSAGetLastError();
 	}
 	// create the server info structure
-	struct sockaddr_in server
+	struct sockaddr_in server;
 	server.sin_addr.s_addr = inet_addr(addr);
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
 	// connect to the server
-	if (connect(cmdSock, (struct sockaddr*)&server, sizeof(server)) < 0)
+	if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0)
 	{
 		return WSAGetLastError();
 	}
