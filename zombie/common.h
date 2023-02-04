@@ -4,4 +4,6 @@
 
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN // exclude less common APIs from windows.h - also prevents winsock redefinition errors
+
 #include <windows.h>
