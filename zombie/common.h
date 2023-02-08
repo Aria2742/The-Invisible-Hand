@@ -8,5 +8,6 @@
 
 #include <windows.h>
 #include <winsock2.h> // include the winsock library
+#include <stdio.h>
 
 #pragma comment(lib, "ws2_32.lib") // link the winsock library

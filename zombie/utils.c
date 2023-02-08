@@ -35,14 +35,14 @@ int initWinSock() {
 * parameters:
 *	[in] addr - a string containing the IPv4 address of the server to connect to
 *	[in] port -  which port to connect to
-*	[out] sock - a SOCKET structure to hold the connected socket
+*	[out] sock - pointer to the SOCKET to connect with
 * returns:
 *	0 on success, otherwise returns the result of WSAGetLastError()
 */
-int connectTCP(char* addr, int port, SOCKET sock) {
+int connectTCP(char* addr, int port, SOCKET* sock) {
 	// create the socket and make sure it worked
-	sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock == INVALID_SOCKET)
+	*sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (*sock == INVALID_SOCKET)
 	{
 		return WSAGetLastError();
 	}
@@ -52,7 +52,7 @@ int connectTCP(char* addr, int port, SOCKET sock) {
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
 	// connect to the server
-	if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0)
+	if (connect(*sock, (struct sockaddr*)&server, sizeof(server)) < 0)
 	{
 		return WSAGetLastError();
 	}

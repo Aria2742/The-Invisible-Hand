@@ -19,12 +19,12 @@ class cmdOutputThread (threading.Thread):
         self.sock = sock
 
     def run(self):
-        global currDir
-
-        while not self.sock.closed():
+        while True:
             data = ''
             try:
                 data = self.sock.recv(4096)
+                if not data:
+                    break
                 print(str(data, 'UTF-8'))
             except Exception as inst:
                 print(type(inst))
@@ -37,7 +37,13 @@ class cmdOutputThread (threading.Thread):
 """
 def main():
     # wait for a zombie to connect
-    cmdSock = utils.openConnection(8080)
+    cmdSock = utils.receiveTCP(8080)
+
+    # connection test
+    print(cmdSock.recv(4096))
+    cmdSock.sendall("Hello World!".encode('UTF-8') + b'\0')
+    cmdSock.close()
+    return
 
     # start a thread to print the command line output
     cmdThread = cmdOutputThread(cmdSock)
