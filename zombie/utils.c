@@ -59,3 +59,23 @@ int connectTCP(char* addr, int port, SOCKET* sock) {
 	// return success
 	return 0;
 }
+
+/*
+* Generic logging function
+*
+* parameters:
+*   [in] fmt - a format string like the used by printf()
+*   [in] ... - values to be inserted into the format string, again similar to using printf()
+* returns:
+*   N/A
+*/
+void logMessage(char* fmt, ...) {
+	// initialize the variable-length argument list
+	va_list args;
+	va_start(args, fmt);
+	// basic logging to STD_OUT
+	// TODO - expand this to allow for output to files and such
+	printf(fmt, args);
+	// required to call this before returning
+	va_end(args);
+}
