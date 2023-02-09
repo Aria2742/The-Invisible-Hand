@@ -75,7 +75,7 @@ void logMessage(char* fmt, ...) {
 	va_start(args, fmt);
 	// basic logging to STD_OUT
 	// TODO - expand this to allow for output to files and such
-	printf(fmt, args);
+	vprintf(fmt, args);
 	// required to call this before returning
 	va_end(args);
 }

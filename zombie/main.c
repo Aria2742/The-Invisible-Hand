@@ -24,4 +24,7 @@ int main() {
 		inputToCMD(buff, strlen(buff));
 		res = recv(cmdSock, buff, 4096, 0);
 	}
+	if (res == SOCKET_ERROR) {
+		printf("Socket error %d\n", WSAGetLastError());
+	}
 }
