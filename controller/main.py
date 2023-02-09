@@ -25,7 +25,8 @@ class cmdOutputThread (threading.Thread):
                 data = self.sock.recv(4096)
                 if not data:
                     break
-                print(str(data, 'UTF-8'))
+                # print without a newline and flush the output to make sure it gets printed immediately
+                print(str(data, 'UTF-8'), end="", flush=True)
             except Exception as inst:
                 print(type(inst))
                 print(inst.args)
