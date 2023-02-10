@@ -12,9 +12,10 @@
 * parameters:
 *	[in] sock - the socket to send the command prompt output to
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int startCMD(SOCKET sock);
+BOOL startCMD(SOCKET sock);
 
 /*
 * Spawn a command prompt with redirected I/O
@@ -22,9 +23,10 @@ int startCMD(SOCKET sock);
 * parameters:
 *	N/A
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int createCommandPrompt();
+BOOL createCommandPrompt();
 
 /*
 * Send a string of input to the child command prompt process
@@ -34,9 +36,10 @@ int createCommandPrompt();
 *	[in] buff - the buffer containing the input string
 *   [in] inputLen - the length of the input string
 * returns:
-*	0 on success, otherwise returns the result of GetLastError()
+*	true on success, false on failure
+*   in the case of failure, the error is logged automatically
 */
-int inputToCMD(char* buff, int inputLen);
+BOOL inputToCMD(char* buff, int inputLen);
 
 /*
 * Function to run the command prompt output thread. Output will be continuously read from command prompt
@@ -45,6 +48,6 @@ int inputToCMD(char* buff, int inputLen);
 * parameters:
 *	[in] lpParam - thread parameters (this is unused since the thread can access the cmd globals struct)
 * returns:
-*	0 on successful exit, otherwise returns the last error code
+*	0 when exiting due to command prompt closing, otherwise returns the last error code
 */
 DWORD WINAPI cmdOutputThread(LPVOID lpParam);
