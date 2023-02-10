@@ -17,16 +17,33 @@ class cmdOutputThread (threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self, daemon=True)
         self.sock = sock
+        self.cmdList = []
+        self.cmdLock = threading.Lock()
+
+    def addCommand(self, cmd):
+        self.cmdLock.acquire()
+        self.cmdList.append(cmd)
+        self.cmdLock.release()
 
     def run(self):
+        data = ''
+        out = ''
         while True:
-            data = ''
             try:
+                # get data from the socket and convert it to a string
                 data = self.sock.recv(4096)
                 if not data:
                     break
+                out = str(data, 'UTF-8')
+                # strip previous commands from the output - prevent echoing sent commands
+                self.cmdLock.acquire()
+                for cmd in self.cmdList:
+                    if cmd in out:
+                        out = out.replace(cmd, '')
+                        self.cmdList.remove(cmd)
+                self.cmdLock.release()
                 # print without a newline and flush the output to make sure it gets printed immediately
-                print(str(data, 'UTF-8'), end="", flush=True)
+                print(out, end="", flush=True)
             except Exception as inst:
                 print(type(inst))
                 print(inst.args)
@@ -47,6 +64,8 @@ def main():
     #main command loop
     cmd = input('')
     while cmd != '#exit':
+        if(not cmd.startswith('#')):
+            cmdThread.addCommand(cmd + '\n')
         cmdSock.sendall(cmd.encode('UTF-8') + b'\n\0')
         cmd = input('')
 
